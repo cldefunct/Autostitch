@@ -17,13 +17,12 @@ def warpLocal(src, uv):
                   dimensions are (rows, cols, color bands BGR).
     '''
     width = src.shape[1]
-    height  = src.shape[0]
+    height = src.shape[0]
     mask = cv2.inRange(uv[:,:,1],0,height-1)&cv2.inRange(uv[:,:,0],0,width-1)
     warped = cv2.remap(src, uv[:, :, 0].astype(np.float32),\
              uv[:, :, 1].astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
     img2_fg = cv2.bitwise_and(warped,warped,mask = mask)
     return img2_fg
-
 
 def computeSphericalWarpMappings(dstShape, f, k1, k2):
     '''
@@ -62,6 +61,7 @@ def computeSphericalWarpMappings(dstShape, f, k1, k2):
 
     xf = ((xf - 0.5 * dstShape[1]) / f)
     yf = ((yf - 0.5 * dstShape[0]) / f - min_y)
+
     # BEGIN TODO 1
     # add code to apply the spherical correction, i.e.,
     # compute the Euclidean coordinates,
@@ -70,10 +70,31 @@ def computeSphericalWarpMappings(dstShape, f, k1, k2):
     # Use xf, yf as input for your code block and compute xt, yt
     # as output for your code. They should all have the shape
     # (img_height, img_width)
+
     # TODO-BLOCK-BEGIN
-    raise Exception("TODO in warp.py not implemented")
+    
+    # compute Euclidean/spherical coordinates coords
+    xhat = np.sin(xf) * np.cos(yf)
+    yhat = np.sin(yf)
+    zhat = np.cos(xf) * np.cos(yf)
+
+    # project the point
+    xnew = xhat/zhat
+    ynew = yhat/zhat
+    # znew = np.ones(dstShape[0], dstShape[1])
+
+    # calculate rsquared
+    rsquared = (xnew*xnew) + (ynew*ynew)
+
+    # calculate final points
+    xd = xnew * (one + k1*rsquared + k2*rsquared*rsquared)
+    yd = ynew * (one + k1*rsquared + k2*rsquared*rsquared)
+
+    xt = xd
+    yt = yd
     # TODO-BLOCK-END
     # END TODO
+
     # Convert back to regular pixel coordinates
     xn = 0.5 * dstShape[1] + xt * f
     yn = 0.5 * dstShape[0] + yt * f
@@ -103,5 +124,3 @@ def warpSpherical(image, focalLength, k1=-0.21, k2=0.26):
 
     # warp image based on backwards coordinates
     return warpLocal(image, uv)
-
-
