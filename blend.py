@@ -31,18 +31,18 @@ def imageBoundingBox(img, M):
     #TODO-BLOCK-BEGIN
     # Calculate corner points when applying homography
     corners = []
-    corners.append(np.dot(M, np.array(0,0,1)))
-    corners.append(np.dot(M, np.array(0,img.shape[1],1)))
-    corners.append(np.dot(M, np.array(img.shape[0],0,1)))
-    corners.append(np.dot(M, np.array(img.shape[0],img.shape[1],1)))
+    corners.append(np.dot(M, np.array([0,0,1])))
+    corners.append(np.dot(M, np.array([0,img.shape[1],1])))
+    corners.append(np.dot(M, np.array([img.shape[0],0,1])))
+    corners.append(np.dot(M, np.array([img.shape[0],img.shape[1],1])))
 
     # Convert back to non-homogeneous coordinates
     corners = [corner[:2]/corner[2] for corner in corners]
 
     # Get Xs
-    xs = sorted[corner[0] for corner in corners]
+    xs = sorted([corner[0] for corner in corners])
     # Get Ys
-    ys = sorted[corner[1] for corner in corners]
+    ys = sorted([corner[1] for corner in corners])
 
     minX = xs[0]
     minY = ys[0]
