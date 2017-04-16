@@ -76,25 +76,39 @@ def accumulateBlend(img, acc, M, blendWidth):
     # pad image for inverse warping
     # img_padded = np.pad(img, ((2,2),(2,2),(0,0)), 'edge')
 
+    # feathering
+    alpha = np.concatenate((np.linspace(0., 1., blendWidth),
+                            np.ones(maxX - minX - 2*blendWidth),
+                            np.linspace(1., 0., blendWidth)))
+
     # reminder: row is y and column is x
     for row in range(minY, maxY):
         for column in range(minX, maxX):
             # inverse warping
             # dot product with M * [x,y,1]
             pos_orig = np.dot(M_inv, np.array([column,row,1]))
-            # TODO: linear interpolation + black pixels + normalize?
+
+            # TODO: linear interpolation: Taking the weighted averages of the surrounding 4 pixels?
+            # TODO: When working with homogeneous coordinates, don't forget to normalize when converting them back to Cartesian coordinates?
             pos_orig_x = (pos_orig[0]/pos_orig[2]).astype(int)
             if pos_orig_x < 0:
                 pos_orig_x = 0
             elif pos_orig_x >= img.shape[1]:
                 pos_orig_x = img.shape[1] - 1
+
             pos_orig_y = (pos_orig[1]/pos_orig[2]).astype(int)
             if pos_orig_y < 0:
                 pos_orig_y = 0
             elif pos_orig_y >= img.shape[0]:
                 pos_orig_y = img.shape[0] - 1
-            # TODO: feathering
-            acc[row, column] += np.append(img[pos_orig_y, pos_orig_x], [1])
+
+            # skip black pixels
+            # TODO: is this right?
+            if np.array_equal(img[pos_orig_y, pos_orig_x], [0, 0, 0]):
+                continue
+
+            # feathering
+            acc[row, column] += np.append((alpha[column - minX] * img[pos_orig_y, pos_orig_x]), [alpha[column - minX]])
     #TODO-BLOCK-END
     # END TODO
 
