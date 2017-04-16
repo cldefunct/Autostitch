@@ -69,7 +69,6 @@ def accumulateBlend(img, acc, M, blendWidth):
     # Fill in this routine
     #TODO-BLOCK-BEGIN
     minX, minY, maxX, maxY = imageBoundingBox(img, M)
-    print(minX, minY, maxX, maxY)
 
     # inverse transformation matrix
     M_inv = np.linalg.inv(M)
@@ -84,20 +83,16 @@ def accumulateBlend(img, acc, M, blendWidth):
             # TODO: linear interpolation + black pixels + normalize?
             pos_orig_x = (pos_orig[1]/pos_orig[2]).astype(int)
             if pos_orig_x < 0:
-                #print('x', pos_orig_x)
                 pos_orig_x = 0
             elif pos_orig_x >= img.shape[1]:
-                #print('x', pos_orig_x)
                 pos_orig_x = img.shape[1] - 1
             pos_orig_y = (pos_orig[0]/pos_orig[2]).astype(int)
             if pos_orig_y < 0:
-                #print('y', pos_orig_y)
                 pos_orig_y = 0
             elif pos_orig_y >= img.shape[0]:
-                #print('y', pos_orig_y)
                 pos_orig_y = img.shape[0] - 1
             # TODO: feathering
-            acc[row, column] = 0.5 * (acc[row, column] + np.append(img[pos_orig_y, pos_orig_x], [1]))
+            acc[row, column] += np.append(img[pos_orig_y, pos_orig_x], [1])
     #TODO-BLOCK-END
     # END TODO
 
@@ -113,7 +108,11 @@ def normalizeBlend(acc):
     # BEGIN TODO 11
     # fill in this routine..
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+    img = np.zeros((acc.shape[0], acc.shape[1], 3), dtype=np.uint8)
+    for row in range(acc.shape[0]):
+        for column in range(acc.shape[1]):
+            if acc[row, column, 3] > 0:
+                img[row, column] = (acc[row, column, 0:3] / acc[row, column, 3]).astype(int)
     #TODO-BLOCK-END
     # END TODO
     return img
@@ -235,7 +234,7 @@ def blendImages(ipv, blendWidth, is360=False, A_out=None):
     # Note: warpPerspective does forward mapping which means A is an affine
     # transform that maps accumulator coordinates to final panorama coordinates
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+
     #TODO-BLOCK-END
     # END TODO
 
