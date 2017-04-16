@@ -44,11 +44,11 @@ def imageBoundingBox(img, M):
     # Get Ys
     ys = sorted([corner[1] for corner in corners])
 
-    # TODO: second smallest/largest value?
-    minX = xs[0]
-    minY = ys[0]
-    maxX = xs[-1]
-    maxY = ys[-1]
+    # TODO: (second) smallest/largest value?
+    minX = xs[1]
+    minY = ys[1]
+    maxX = xs[-2]
+    maxY = ys[-2]
     #TODO-BLOCK-END
     return int(minX), int(minY), int(maxX), int(maxY)
 
@@ -76,17 +76,19 @@ def accumulateBlend(img, acc, M, blendWidth):
     # pad image for inverse warping
     # img_padded = np.pad(img, ((2,2),(2,2),(0,0)), 'edge')
 
+    # reminder: row is y and column is x
     for row in range(minY, maxY):
         for column in range(minX, maxX):
             # inverse warping
-            pos_orig = np.dot(M_inv, np.array([row,column,1]))
+            # dot product with M * [x,y,1]
+            pos_orig = np.dot(M_inv, np.array([column,row,1]))
             # TODO: linear interpolation + black pixels + normalize?
-            pos_orig_x = (pos_orig[1]/pos_orig[2]).astype(int)
+            pos_orig_x = (pos_orig[0]/pos_orig[2]).astype(int)
             if pos_orig_x < 0:
                 pos_orig_x = 0
             elif pos_orig_x >= img.shape[1]:
                 pos_orig_x = img.shape[1] - 1
-            pos_orig_y = (pos_orig[0]/pos_orig[2]).astype(int)
+            pos_orig_y = (pos_orig[1]/pos_orig[2]).astype(int)
             if pos_orig_y < 0:
                 pos_orig_y = 0
             elif pos_orig_y >= img.shape[0]:
