@@ -36,7 +36,7 @@ def imageBoundingBox(img, M):
     corners.append(np.dot(M, np.array([img.shape[0],0,1])))
     corners.append(np.dot(M, np.array([img.shape[0],img.shape[1],1])))
 
-    # Convert back to non-homogeneous coordinates
+    # Convert back to cartesian coordinates
     corners = [corner[:2]/corner[2] for corner in corners]
 
     # Get Xs
@@ -44,6 +44,7 @@ def imageBoundingBox(img, M):
     # Get Ys
     ys = sorted([corner[1] for corner in corners])
 
+    # TODO: second smallest/largest value?
     minX = xs[0]
     minY = ys[0]
     maxX = xs[-1]
@@ -67,7 +68,36 @@ def accumulateBlend(img, acc, M, blendWidth):
     # BEGIN TODO 10
     # Fill in this routine
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+    minX, minY, maxX, maxY = imageBoundingBox(img, M)
+    print(minX, minY, maxX, maxY)
+
+    # inverse transformation matrix
+    M_inv = np.linalg.inv(M)
+
+    # pad image for inverse warping
+    # img_padded = np.pad(img, ((2,2),(2,2),(0,0)), 'edge')
+
+    for row in range(minY, maxY):
+        for column in range(minX, maxX):
+            # inverse warping
+            pos_orig = np.dot(M_inv, np.array([row,column,1]))
+            # TODO: linear interpolation + black pixels + normalize?
+            pos_orig_x = (pos_orig[1]/pos_orig[2]).astype(int)
+            if pos_orig_x < 0:
+                #print('x', pos_orig_x)
+                pos_orig_x = 0
+            elif pos_orig_x >= img.shape[1]:
+                #print('x', pos_orig_x)
+                pos_orig_x = img.shape[1] - 1
+            pos_orig_y = (pos_orig[0]/pos_orig[2]).astype(int)
+            if pos_orig_y < 0:
+                #print('y', pos_orig_y)
+                pos_orig_y = 0
+            elif pos_orig_y >= img.shape[0]:
+                #print('y', pos_orig_y)
+                pos_orig_y = img.shape[0] - 1
+            # TODO: feathering
+            acc[row, column] = 0.5 * (acc[row, column] + np.append(img[pos_orig_y, pos_orig_x], [1]))
     #TODO-BLOCK-END
     # END TODO
 
