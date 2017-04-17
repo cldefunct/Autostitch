@@ -44,7 +44,7 @@ def imageBoundingBox(img, M):
     # Get Ys
     ys = sorted([corner[1] for corner in corners])
 
-    # TODO: (second) smallest/largest value?
+    # Get the second smallest and largest value for the bounding box
     minX = xs[1]
     minY = ys[1]
     maxX = xs[-2]
@@ -73,10 +73,9 @@ def accumulateBlend(img, acc, M, blendWidth):
     # inverse transformation matrix
     M_inv = np.linalg.inv(M)
 
-    # pad image for inverse warping
-    # img_padded = np.pad(img, ((2,2),(2,2),(0,0)), 'edge')
-
     # feathering
+    if (maxX - minX) < 2*blendWidth:
+        blendWidth = (maxX - minX) / 2 - 1
     alpha = np.concatenate((np.linspace(0., 1., blendWidth),
                             np.ones(maxX - minX - 2*blendWidth),
                             np.linspace(1., 0., blendWidth)))
@@ -85,30 +84,51 @@ def accumulateBlend(img, acc, M, blendWidth):
     for row in range(minY, maxY):
         for column in range(minX, maxX):
             # inverse warping
-            # dot product with M * [x,y,1]
+            # dot product with M  to get homogeneous coordinates
             pos_orig = np.dot(M_inv, np.array([column,row,1]))
 
-            # TODO: linear interpolation: Taking the weighted averages of the surrounding 4 pixels?
-            # TODO: When working with homogeneous coordinates, don't forget to normalize when converting them back to Cartesian coordinates?
-            pos_orig_x = (pos_orig[0]/pos_orig[2]).astype(int)
+            # convert to euclidean coordinates and check for out of bounds
+            pos_orig_x = (pos_orig[0]/pos_orig[2])
             if pos_orig_x < 0:
                 pos_orig_x = 0
-            elif pos_orig_x >= img.shape[1]:
+            elif pos_orig_x > img.shape[1] - 1:
                 pos_orig_x = img.shape[1] - 1
 
-            pos_orig_y = (pos_orig[1]/pos_orig[2]).astype(int)
+            pos_orig_y = (pos_orig[1]/pos_orig[2])
             if pos_orig_y < 0:
                 pos_orig_y = 0
-            elif pos_orig_y >= img.shape[0]:
+            elif pos_orig_y > img.shape[0] - 1:
                 pos_orig_y = img.shape[0] - 1
 
+            rgb = [0, 0, 0]
+
+            # bilinear interpolation
+            # check if interpolation is required
+            if(np.array_equal(np.round([pos_orig_x, pos_orig_y]), [pos_orig_x, pos_orig_y])):
+                rgb = img[int(pos_orig_y), int(pos_orig_x)]
+            else:
+                # get the 4 surrounding pixels
+                pos_neighbors = np.array([np.floor([pos_orig_x, pos_orig_y]),
+                                np.ceil([pos_orig_x, pos_orig_y]),
+                                (np.floor(pos_orig_x), np.ceil(pos_orig_y)),
+                                (np.ceil(pos_orig_x), np.floor(pos_orig_y))])
+                black_counter = 0
+                for neighbor in pos_neighbors:
+                    # check if one of the surrounding pixels is entirely black
+                    if np.array_equal(img[int(neighbor[1]), int(neighbor[0])], [0,0,0]):
+                        black_counter += 1
+                    (x_dist, y_dist) = abs((pos_orig_x, pos_orig_y) - neighbor)
+                    share = (1 - x_dist) * (1 - y_dist)
+                    rgb += share * img[int(neighbor[1]), int(neighbor[0])]
+                if black_counter in (1,2,3):
+                    rgb = rgb/((4-black_counter)/float(4))
+
             # skip black pixels
-            # TODO: is this right?
-            if np.array_equal(img[pos_orig_y, pos_orig_x], [0, 0, 0]):
+            if np.array_equal(rgb, [0, 0, 0]):
                 continue
 
             # feathering
-            acc[row, column] += np.append((alpha[column - minX] * img[pos_orig_y, pos_orig_x]), [alpha[column - minX]])
+            acc[row, column] += np.append((alpha[column - minX] * rgb), [alpha[column - minX]])
     #TODO-BLOCK-END
     # END TODO
 
@@ -250,6 +270,9 @@ def blendImages(ipv, blendWidth, is360=False, A_out=None):
     # Note: warpPerspective does forward mapping which means A is an affine
     # transform that maps accumulator coordinates to final panorama coordinates
     #TODO-BLOCK-BEGIN
+
+    if(is360):
+        A = computeDrift(x_init, y_init, x_final, y_final, width)
 
     #TODO-BLOCK-END
     # END TODO
