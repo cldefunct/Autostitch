@@ -74,8 +74,7 @@ def computeHomography(f1, f2, matches, A_out=None):
     #Fill the homography H with the appropriate elements of the SVD
     #TODO-BLOCK-BEGIN
 
-    #H = (Vt[Vt.shape[0] - 1]/Vt[Vt.shape[0] - 1][8]).reshape(3,3) # set homography to smallest right singular vector (the last row vector, normalized)
-    H = Vt[-1].reshape(3,3)
+    H = Vt[-1].reshape(3,3) # take the last row of the Vt matrix, which will correspond to the smallest singular value, and thus the least error
 
     #TODO-BLOCK-END
     #END TODO
@@ -121,11 +120,13 @@ def alignPair(f1, f2, matches, m, nRANSAC, RANSACthresh):
     # figure out the minimal number of matches needed to align
     minMatches = 0
 
+    # set minMatches appropriately
     if(m == eTranslate):
         minMatches = 1
     elif (m == eHomography):
         minMatches = 4
 
+    # tracking variables
     maxInliers = 0
     best_inliers = []
 
@@ -135,7 +136,7 @@ def alignPair(f1, f2, matches, m, nRANSAC, RANSACthresh):
 
         H_estimate = np.eye(3,3)
 
-        # estimate the homography
+        # estimate the homography if necessary
         if(m == eHomography):
             H_estimate = computeHomography(f1, f2, matchSample)
         else:
@@ -194,6 +195,7 @@ def getInliers(f1, f2, matches, M, RANSACthresh):
         #If so, append i to inliers
         #TODO-BLOCK-BEGIN
 
+        # get the query and train indexes for ease of use
         queryInd = matches[i].queryIdx
         trainInd = matches[i].trainIdx
 
@@ -201,10 +203,10 @@ def getInliers(f1, f2, matches, M, RANSACthresh):
         transformedQueryFeature = M.dot(queryPoint) # transform the query feature by the transformation matrix
 
         # assemble new point/feature for comparison
-        comp1 = [transformedQueryFeature[0]/transformedQueryFeature[2], transformedQueryFeature[1]/transformedQueryFeature[2]]
+        comp1 = [transformedQueryFeature[0]/transformedQueryFeature[2], transformedQueryFeature[1]/transformedQueryFeature[2]] # normalize with respect to z
         comp2 = np.array(f2[trainInd].pt)[:2]
 
-        if(np.linalg.norm(comp1-comp2) <= RANSACthresh):
+        if(np.linalg.norm(comp1-comp2) <= RANSACthresh): # compare the points, check against threshold
             inlier_indices.append(i)
 
         #TODO-BLOCK-END
@@ -252,7 +254,7 @@ def leastSquaresFit(f1, f2, matches, m, inlier_indices):
             #over all inliers.
             #TODO-BLOCK-BEGIN
 
-            point1 = f1[matches[inlier_indices[i]].queryIdx].pt
+            point1 = f1[matches[inlier_indices[i]].queryIdx].pt # get raw points
             point2 = f2[matches[inlier_indices[i]].trainIdx].pt
 
             u += point2[0] - point1[0] # compute x distance and add to the vector sum
@@ -272,11 +274,14 @@ def leastSquaresFit(f1, f2, matches, m, inlier_indices):
         #Compute a homography M using all inliers.
         #This should call computeHomography.
         #TODO-BLOCK-BEGIN
+
+        # build set of inlier matches
         inlier_matchset = []
         for i in range(len(inlier_indices)):
             inlier_matchset.append(matches[inlier_indices[i]])
 
-        M = computeHomography(f1, f2, inlier_matchset)
+        M = computeHomography(f1, f2, inlier_matchset) # compute a homography given this set of matches
+        
         #TODO-BLOCK-END
         #END TODO
 
