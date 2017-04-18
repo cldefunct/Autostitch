@@ -105,7 +105,7 @@ def accumulateBlend(img, acc, M, blendWidth):
         for row in range(minY, maxY):
             if(np.array_equal(warped[row, column, :3], [0,0,0])): # if the pixel is black
                 warped[row, column, 3] = 0.0; # set opacity to 0
-            acc[row, column] += warped[row, column] # save RGB value of pixel in accumulator
+            acc[row, column] += warped[row, column] # save RGB & alpha value of pixel in accumulator
 
     #TODO-BLOCK-END
     # END TODO
