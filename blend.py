@@ -70,9 +70,6 @@ def accumulateBlend(img, acc, M, blendWidth):
     #TODO-BLOCK-BEGIN
     minX, minY, maxX, maxY = imageBoundingBox(img, M)
 
-    # inverse transformation matrix
-    M_inv = np.linalg.inv(M)
-
     # feathering
     if (maxX - minX) < 2*blendWidth:
         blendWidth = (maxX - minX) / 2 - 1
@@ -80,55 +77,33 @@ def accumulateBlend(img, acc, M, blendWidth):
                             np.ones(maxX - minX - 2*blendWidth),
                             np.linspace(1., 0., blendWidth)))
 
-    # reminder: row is y and column is x
-    for row in range(minY, maxY):
-        for column in range(minX, maxX):
-            # inverse warping
-            # dot product with M  to get homogeneous coordinates
-            pos_orig = np.dot(M_inv, np.array([column,row,1]))
+    # new matrix with space for alpha channel
+    withalpha = np.ones((img.shape[0], img.shape[1], 4))
 
-            # convert to euclidean coordinates and check for out of bounds
-            pos_orig_x = (pos_orig[0]/pos_orig[2])
-            if pos_orig_x < 0:
-                pos_orig_x = 0
-            elif pos_orig_x > img.shape[1] - 1:
-                pos_orig_x = img.shape[1] - 1
+    # move in image channels
+    withalpha[:,:,0] = img[:,:,0]
+    withalpha[:,:,1] = img[:,:,1]
+    withalpha[:,:,2] = img[:,:,2]
 
-            pos_orig_y = (pos_orig[1]/pos_orig[2])
-            if pos_orig_y < 0:
-                pos_orig_y = 0
-            elif pos_orig_y > img.shape[0] - 1:
-                pos_orig_y = img.shape[0] - 1
+    # inverse transformation matrix
+    M_inv = np.linalg.inv(M)
 
-            rgb = [0, 0, 0]
+    # NOTE: tried to use linear interpolation flag in below call, but was giving us black edges within panorama [flag below]
+    # cv2.INTER_LINEAR +
+    warped = cv2.warpPerspective(withalpha, M_inv, (acc.shape[1],acc.shape[0]), flags=(cv2.WARP_INVERSE_MAP))
 
-            # bilinear interpolation
-            # check if interpolation is required
-            if(np.array_equal(np.round([pos_orig_x, pos_orig_y]), [pos_orig_x, pos_orig_y])):
-                rgb = img[int(pos_orig_y), int(pos_orig_x)]
-            else:
-                # get the 4 surrounding pixels
-                pos_neighbors = np.array([np.floor([pos_orig_x, pos_orig_y]),
-                                np.ceil([pos_orig_x, pos_orig_y]),
-                                (np.floor(pos_orig_x), np.ceil(pos_orig_y)),
-                                (np.ceil(pos_orig_x), np.floor(pos_orig_y))])
-                black_counter = 0
-                for neighbor in pos_neighbors:
-                    # check if one of the surrounding pixels is entirely black
-                    if np.array_equal(img[int(neighbor[1]), int(neighbor[0])], [0,0,0]):
-                        black_counter += 1
-                    (x_dist, y_dist) = abs((pos_orig_x, pos_orig_y) - neighbor)
-                    share = (1 - x_dist) * (1 - y_dist)
-                    rgb += share * img[int(neighbor[1]), int(neighbor[0])]
-                if black_counter in (1,2,3):
-                    rgb = rgb/((4-black_counter)/float(4))
+    # for column in space of panorama reserved for this image
+    for column in range(minX, maxX):
+        warped[:, column, :3] = warped[:, column, :3] * alpha[column - minX] # calculate feathered RGB value
 
-            # skip black pixels
-            if np.array_equal(rgb, [0, 0, 0]):
-                continue
+        vals = np.full((warped.shape[0]), alpha[column - minX])
+        warped[:, column, 3] = vals # assign correct values to opacity channel
 
-            # feathering
-            acc[row, column] += np.append((alpha[column - minX] * rgb), [alpha[column - minX]])
+        for row in range(minY, maxY):
+            if(np.array_equal(warped[row, column, :3], [0,0,0])): # if the pixel is black
+                warped[row, column, 3] = 0.0; # set opacity to 0
+            acc[row, column] += warped[row, column] # accumulate the pixel
+
     #TODO-BLOCK-END
     # END TODO
 
