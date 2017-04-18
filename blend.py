@@ -85,12 +85,15 @@ def accumulateBlend(img, acc, M, blendWidth):
     withalpha[:,:,1] = img[:,:,1]
     withalpha[:,:,2] = img[:,:,2]
 
+    # pad for linear interpolation
+    #withalpha = np.pad(withalpha, ((2,2), (2,2), (0,0)), 'edge')
+
     # inverse transformation matrix
     M_inv = np.linalg.inv(M)
 
-    # NOTE: tried to use linear interpolation flag in below call, but was giving us black edges within panorama [flag below]
-    # cv2.INTER_LINEAR +
-    warped = cv2.warpPerspective(withalpha, M_inv, (acc.shape[1],acc.shape[0]), flags=(cv2.WARP_INVERSE_MAP))
+    # NOTE: Using nearest interpolation. Linear interpolation can be used by using flag 'cv2.INTER_LINEAR'.
+    # However this creates hairline borders around the individual images.
+    warped = cv2.warpPerspective(withalpha, M_inv, (acc.shape[1],acc.shape[0]), flags=(cv2.WARP_INVERSE_MAP + cv2.INTER_NEAREST))
 
     # for column in space of panorama reserved for this image
     for column in range(minX, maxX):
@@ -102,7 +105,7 @@ def accumulateBlend(img, acc, M, blendWidth):
         for row in range(minY, maxY):
             if(np.array_equal(warped[row, column, :3], [0,0,0])): # if the pixel is black
                 warped[row, column, 3] = 0.0; # set opacity to 0
-            acc[row, column] += warped[row, column] # accumulate the pixel
+            acc[row, column] += warped[row, column] # save RGB value of pixel in accumulator
 
     #TODO-BLOCK-END
     # END TODO
